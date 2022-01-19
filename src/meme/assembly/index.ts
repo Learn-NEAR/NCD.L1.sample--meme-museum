@@ -65,6 +65,8 @@ export function vote(value: i8): void {
   batch_vote(value, false)
 }
 
+
+
 /**
  * Register a batched vote where several votes are captured together
  *
@@ -80,6 +82,11 @@ export function batch_vote(value: i8, is_batch: bool = true): void {
   const voter = is_batch ? "batch-" + context.predecessor : context.predecessor
   Meme.add_vote(voter, value)
 }
+
+
+
+
+
 
 /**
  * Get a list ofrecent votes
@@ -100,6 +107,7 @@ export function get_vote_score(): i32 {
 // ----------------------------------------------------------------------------
 // Comments
 // ----------------------------------------------------------------------------
+
 
 /**
  * Add a comment
@@ -151,6 +159,20 @@ export function get_recent_donations(): Array<Donation> {
   assert_contract_is_initialized()
   return Meme.recent_donations()
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /**

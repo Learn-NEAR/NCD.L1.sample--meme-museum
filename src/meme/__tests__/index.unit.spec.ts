@@ -52,6 +52,11 @@ const donations = (): PersistentVector<model.Donation> => {
   return new PersistentVector<model.Donation>("d");
 };
 
+
+
+
+
+
 /**
  * == UNIT TESTS ==============================================================
  */
@@ -82,6 +87,8 @@ describe("meme initialization", () => {
     }).toThrow("Contract is already initialized")
   });
 
+
+
   it("requires title not to be blank", () => {
     attachMinBalance()
 
@@ -97,6 +104,10 @@ describe("meme initialization", () => {
   });
 
 });
+
+
+
+
 
 describe("meme voting", () => {
   beforeEach(doInitialize)
