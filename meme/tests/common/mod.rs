@@ -11,7 +11,10 @@ pub use utils::{ MIN_ACCOUNT_BALANCE, Category };
 use near_sdk::{
     // VMContext, 
     test_utils::VMContextBuilder,
-    json_types::ValidAccountId,
+    json_types::{
+        U128,
+        ValidAccountId,
+    }
 };
 
 
@@ -32,6 +35,9 @@ pub fn CREATOR_ACCOUNT_ID() -> String { String::from("alice.near") }
 #[allow(non_snake_case)]
 #[allow(dead_code)]
 pub fn CONTRIBUTOR_ACCOUNT_ID() -> String { String::from("bob.near") }
+#[allow(non_snake_case)]
+#[allow(dead_code)]
+pub fn ATTACHED_DEPOSIT() -> U128 { U128::from( utils::ONE_NEAR * 10) }
 
 // const ATTACHED_DEPOSIT: u128 = ONE_NEAR * 10;
 

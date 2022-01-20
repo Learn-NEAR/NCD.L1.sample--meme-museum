@@ -1,6 +1,13 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 #[allow(unused_imports)]
-use near_sdk::{env, near_bindgen};
+use near_sdk::{
+    env, 
+    near_bindgen,
+    json_types::{
+        U128,
+        U64,
+    }
+};
 // use near_sdk::collections::Vector;
 // use near_sdk::serde::{Deserialize, Serialize};
 

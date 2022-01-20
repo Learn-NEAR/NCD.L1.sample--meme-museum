@@ -172,6 +172,10 @@ describe("meme voting", () => {
 });
 
 
+
+
+
+
 describe("meme comments", () => {
   beforeEach(doInitialize)
 
@@ -207,6 +211,13 @@ describe("meme comments", () => {
   });
 })
 
+
+
+
+
+
+
+
 describe("meme donations", () => {
   beforeEach(doInitialize)
 
@@ -222,6 +233,8 @@ describe("meme donations", () => {
   describe("captures donations", () => {
 
     beforeEach(() => {
+
+
       VMContext.setAttached_deposit(ATTACHED_DEPOSIT)
 
       VMContext.setSigner_account_id(CREATOR_ACCOUNT_ID)
@@ -231,6 +244,10 @@ describe("meme donations", () => {
       VMContext.setSigner_account_id(CONTRIBUTOR_ACCOUNT_ID)
       VMContext.setPredecessor_account_id(CONTRIBUTOR_ACCOUNT_ID)
       contract.donate()
+
+
+
+      
     })
 
     it("captures all donations", () => {
