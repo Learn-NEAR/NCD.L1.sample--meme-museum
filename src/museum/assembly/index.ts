@@ -102,6 +102,9 @@ export function add_meme(
   )
 }
 
+
+
+
 export function on_meme_created(meme: AccountId): void {
   let results = ContractPromise.getResults();
   let memeCreated = results[0];
@@ -128,6 +131,11 @@ export function on_meme_created(meme: AccountId): void {
       break;
   }
 }
+
+
+
+
+
 
 /*
  * Governance methods reserved for 101Labs and NEAR admins
