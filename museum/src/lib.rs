@@ -30,7 +30,7 @@ fn CODE() -> Vec<u8> {
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    globals: Globals
+    pub globals: Globals
 }
 
 #[near_bindgen]
@@ -41,7 +41,7 @@ impl Contract{
     // }
 
     #[init]
-    pub fn new(name: String, owners: Vec<AccountId>) {
+    pub fn new(name: String, owners: Vec<AccountId>) -> Self{
         // contract may only be initialized once
         assert!(!is_initialized(), "Contract is already initialized.");
 
@@ -59,6 +59,10 @@ impl Contract{
         Museum::create(&mut globals, name, owners);
 
         env::log("museum was created".as_bytes());
+
+        Contract{ 
+            globals 
+        }
     }
 
     pub fn get_museum(&mut self) -> Museum{

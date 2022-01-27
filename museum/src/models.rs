@@ -11,7 +11,7 @@ use utils::{ MUSEUM_KEY, AccountId, Timestamp, Category };
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Museum {
     created_at: Timestamp,
-    name: String,
+    pub name: String,
 }
 
 

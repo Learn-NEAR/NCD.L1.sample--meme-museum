@@ -82,6 +82,11 @@ describe("museum initialization", () => {
     }).toThrow("Museum name may not be blank")
   });
 
+
+
+
+
+
   it("requires a minimum balance", () => {
     expect(() => {
       contract.init(NAME, [OWNER_ACCOUNT_ID])
@@ -89,6 +94,13 @@ describe("museum initialization", () => {
   });
 
 });
+
+
+
+
+
+
+
 
 describe("Museum self-service methods", () => {
   beforeEach(doInitialize)
