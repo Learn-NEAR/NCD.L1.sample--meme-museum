@@ -1,20 +1,6 @@
 pub(crate) mod setup_tests;
 
-// use near_sdk::{
-//     // Balance,
-//     // BlockHeight,
-//     // EpochHeight,
-//     // Gas,
-//     // PublicKey,
-//     // StorageUsage,
-//     // MockedBlockchain,
-//     // test_utils::{VMContextBuilder},
-//     // testing_env,
-//     // json_types::ValidAccountId, env::signer_account_id, AccountId,
-// };
-
 use utils;
-// use setup_tests::setup_tests;
 pub use crate::setup_tests as setup;
 
 use museum::Contract;
@@ -35,6 +21,7 @@ pub fn CONTRIBUTOR_ACCOUNT_ID() -> String { String::from("bob") }
 
 // == HELPER FUNCTIONS =========================================================
 
+// I don't think I'll use these functions for testing, will make the code too complex
 pub fn use_museum_as_predecessor() -> (String, String){
     ( "predecessor_account_id".into(), MUSEUM_ACCOUNT_ID())
 }
@@ -60,31 +47,4 @@ pub fn do_initialize() -> Contract {
 
     Contract::new(NAME(), vec!(OWNER_ACCOUNT_ID(),))
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// #[test]
-// fn setting_up() {
-//     let name = "attached_deposit";
-//     let balance = utils::MIN_ACCOUNT_BALANCE;
-//     // attachminbalance
-//     setup_tests!((name, balance));
-    
-// }
-
 
