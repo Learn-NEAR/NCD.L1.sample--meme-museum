@@ -1,37 +1,25 @@
-
-// mod meme_voting;
 mod common;
 
-
 use near_sdk::{
-    testing_env, 
-    // VMContext, 
     MockedBlockchain,
     test_utils::VMContextBuilder,
-    json_types::ValidAccountId,
+    testing_env,
 };
 
+use utils::validate;
 
 use common::{
-    CREATOR_ACCOUNT_ID, 
-    TITLE, 
-    DATA, 
-    CATEGORY,
-    CONTRIBUTOR_ACCOUNT_ID,
-    setup_meme_voting as setup,
+    setup_meme_voting as setup, CATEGORY, CONTRIBUTOR_ACCOUNT_ID, CREATOR_ACCOUNT_ID, DATA, TITLE,
 };
 
-// use super::setup;
 use meme::Contract;
 
-// use common::*;
-
-fn setup2() -> Contract{
+fn setup2() -> Contract {
     let mut builder: VMContextBuilder = setup(false);
-    builder.signer_account_id(ValidAccountId::try_from(CREATOR_ACCOUNT_ID()).unwrap());
-    builder.predecessor_account_id(ValidAccountId::try_from(CREATOR_ACCOUNT_ID()).unwrap());
+    builder.signer_account_id(validate(&CREATOR_ACCOUNT_ID()));
+    builder.predecessor_account_id(validate(&CREATOR_ACCOUNT_ID()));
 
-    let mut context = builder.build();
+    let context = builder.clone().build();
 
     testing_env!(context.clone());
     println!("Initializing");
@@ -42,14 +30,9 @@ fn setup2() -> Contract{
     println!("Voting");
     contract.vote(1);
 
-    // let mut builder: VMContextBuilder = setup(false);
-    // builder.signer_account_id(ValidAccountId::try_from(CONTRIBUTOR_ACCOUNT_ID()).unwrap());
-    // builder.predecessor_account_id(ValidAccountId::try_from(CONTRIBUTOR_ACCOUNT_ID()).unwrap());
-    // testing_env!(builder.build());
-
-    context.signer_account_id = CONTRIBUTOR_ACCOUNT_ID();
-    context.predecessor_account_id = CONTRIBUTOR_ACCOUNT_ID();
-    testing_env!(context);
+    builder.signer_account_id(validate(&CONTRIBUTOR_ACCOUNT_ID()));
+    builder.predecessor_account_id(validate(&CONTRIBUTOR_ACCOUNT_ID()));
+    testing_env!(builder.build());
 
     println!("Voting");
     contract.vote(1);
@@ -60,10 +43,10 @@ fn setup2() -> Contract{
 }
 
 #[test]
-fn captures_all_votes(){
+fn captures_all_votes() {
     let contract: Contract = setup2();
-    assert_eq!(contract.trie_state.votes.len(), 2);
-    assert_eq!(contract.trie_state.voters.len(), 2);
+    assert_eq!(contract.globals.votes.len(), 2);
+    assert_eq!(contract.globals.voters.len(), 2);
 }
 
 #[test]
@@ -73,12 +56,7 @@ fn calculates_a_running_vote_score() {
 }
 
 #[test]
-fn returns_a_list_of_recent_votes(){
+fn returns_a_list_of_recent_votes() {
     let mut contract: Contract = setup2();
     assert_eq!(contract.get_recent_votes().len(), 2);
 }
-
-
-
-
-

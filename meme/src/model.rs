@@ -1,23 +1,14 @@
 use near_sdk::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    collections::{UnorderedSet, Vector},
     env,
-    borsh::{
-        self,
-        BorshDeserialize,
-        BorshSerialize,
-    },
-    collections::{
-        Vector,
-        UnorderedSet,
-    },
-    serde::{
-        Deserialize,
-        Serialize,
-    }
+    serde::{Deserialize, Serialize},
+    AccountId,
 };
 
-use utils::{ MEME_KEY, PAGE_SIZE, Category, AccountId, Money, Timestamp };
+use utils::{Category, Money, Timestamp, MEME_KEY, PAGE_SIZE};
 
-#[derive(Clone, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Comment {
     created_at: Timestamp,
@@ -28,8 +19,8 @@ pub struct Comment {
 impl Comment {
     pub fn new(text: String) -> Self {
         let created_at: Timestamp = env::block_timestamp();
-        let author: AccountId = env::predecessor_account_id();
-        Comment{
+        let author: AccountId = env::predecessor_account_id().into();
+        Comment {
             created_at,
             author,
             text,
@@ -37,7 +28,7 @@ impl Comment {
     }
 }
 
-#[derive(Clone, Default, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Vote {
     created_at: Timestamp,
@@ -45,8 +36,7 @@ pub struct Vote {
     voter: AccountId,
 }
 
-
-impl Vote{
+impl Vote {
     pub fn new(value: i8, voter: AccountId) -> Self {
         let created_at: Timestamp = env::block_timestamp();
 
@@ -58,6 +48,12 @@ impl Vote{
     }
 }
 
+impl Default for Vote {
+    fn default() -> Self {
+        Self::new(0, env::predecessor_account_id().into())
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Donation {
@@ -66,13 +62,13 @@ pub struct Donation {
     pub created_at: Timestamp,
 }
 
-impl Default for Donation{
+impl Default for Donation {
     fn default() -> Self {
         let amount: Money = env::attached_deposit();
-        let donor: AccountId = env::predecessor_account_id();
+        let donor: AccountId = env::predecessor_account_id().into();
         let created_at: Timestamp = env::block_timestamp();
 
-        Donation{
+        Donation {
             amount,
             donor,
             created_at,
@@ -80,11 +76,10 @@ impl Default for Donation{
     }
 }
 
-
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Meme {
-    pub creator: AccountId,
+    pub creator: String,
     pub created_at: Timestamp,
     pub vote_score: i32,
     pub total_donations: u128,
@@ -93,15 +88,14 @@ pub struct Meme {
     pub category: Category,
 }
 
-
 impl Meme {
     pub fn new(title: String, data: String, category: Category) -> Self {
-        let creator: AccountId = env::predecessor_account_id();
+        let creator: String = env::predecessor_account_id().into();
         let created_at: Timestamp = env::block_timestamp();
         let vote_score: i32 = 0;
         let total_donations: u128 = 0;
 
-        Meme{
+        Meme {
             creator,
             created_at,
             vote_score,
@@ -112,13 +106,12 @@ impl Meme {
         }
     }
 
-    pub fn create(
-        title: String, 
-        data: String, 
-        category: Category,
-    ) {
+    pub fn create(title: String, data: String, category: Category) {
         // data has to have identifier from valid content provider
-        assert!(is_valid_meme_data(&data), "Data is not valid, must start with valid 9gag.com URL");
+        assert!(
+            is_valid_meme_data(&data),
+            "Data is not valid, must start with valid 9gag.com URL"
+        );
 
         // save the meme to storage
         let mut meme = Meme::new(title, data, category);
@@ -131,7 +124,7 @@ impl Meme {
 
         let result: Meme = BorshDeserialize::deserialize(&mut (&stored[..])).unwrap();
         // We have to use borsh to serialize/deserialize this object to/from bytes
-        return result
+        return result;
     }
 
     pub fn set(&mut self) {
@@ -145,13 +138,10 @@ impl Meme {
     // Voting
     // ----------------------------------------------------------------------------
 
-    pub fn add_vote(
-        trie_state: &mut TrieState,
-        voter: String, 
-        value: i8,
-    ) {
+    pub fn add_vote(globals: &mut Globals, voter: String, value: i8) {
+        let voter: AccountId = AccountId::try_from(voter).unwrap();
         // allow each account to vote only once
-        assert!(!trie_state.voters.contains(&voter), "Voter has already voted");
+        assert!(!globals.voters.contains(&voter), "Voter has already voted");
         // fetch meme from storage
         let mut meme = Self::get();
         // calculate the new score for the meme
@@ -159,16 +149,16 @@ impl Meme {
         // save it back to storage
         meme.set();
         // remember the voter has voted
-        trie_state.voters.insert(&voter);
+        globals.voters.insert(&voter);
         // add the new Vote
-        trie_state.votes.insert(&Vote::new(value, voter));   
+        globals.votes.insert(&Vote::new(value, voter));
     }
 
     pub fn get_votes_count(votes: &Vector<Vote>) -> u32 {
         votes.len() as u32
     }
 
-    pub fn recent_votes(trie_state: &mut TrieState, count: Option<i32>) -> Vec<Vote> {
+    pub fn recent_votes(trie_state: &mut Globals, count: Option<i32>) -> Vec<Vote> {
         let result = get_last(&mut trie_state.votes, count);
 
         result
@@ -178,15 +168,15 @@ impl Meme {
     // Comments
     // ----------------------------------------------------------------------------
 
-    pub fn add_comment(trie_state: &mut TrieState, text: String) {
+    pub fn add_comment(trie_state: &mut Globals, text: String) {
         trie_state.comments.insert(&Comment::new(text));
     }
 
-    pub fn get_comments_count(trie_state: &mut TrieState) -> u32 {
+    pub fn get_comments_count(trie_state: &mut Globals) -> u32 {
         trie_state.comments.len() as u32
     }
 
-    pub fn recent_comments(trie_state: &mut TrieState, count: Option<i32>) -> Vec<Comment> {
+    pub fn recent_comments(trie_state: &mut Globals, count: Option<i32>) -> Vec<Comment> {
         let result = get_last(&mut trie_state.comments, count);
 
         result
@@ -196,7 +186,7 @@ impl Meme {
     // Donations
     // ----------------------------------------------------------------------------
 
-    pub fn add_donation(trie_state: &mut TrieState){
+    pub fn add_donation(trie_state: &mut Globals) {
         // fetch meme from storage
         let mut meme = Self::get();
         // record the donation
@@ -207,32 +197,34 @@ impl Meme {
         trie_state.donations.insert(&Donation::default());
     }
 
-    pub fn get_donations_count(trie_state: &TrieState) -> u32 {
+    pub fn get_donations_count(trie_state: &Globals) -> u32 {
         trie_state.donations.len() as u32
     }
 
-    pub fn recent_donations(trie_state: &mut TrieState, count: Option<i32>) -> Vec<Donation> {
+    pub fn recent_donations(trie_state: &mut Globals, count: Option<i32>) -> Vec<Donation> {
         let result = get_last(&mut trie_state.donations, count);
 
         result
-    }  
+    }
 }
 
 /// Handle validation and extraction of meme data
 pub fn is_valid_meme_data(data: &str) -> bool {
-    return data.starts_with("https://9gag.com")
+    return data.starts_with("https://9gag.com");
 }
 
-
-/// get_last is currently not implemented for Vector, 
+/// get_last is currently not implemented for Vector,
 /// so we're implementing here to avoid typing the same code several times.
-pub fn get_last<D: BorshDeserialize + BorshSerialize>(unset: &mut UnorderedSet<D>, count: Option<i32>) -> Vec<D> {
+pub fn get_last<D: BorshDeserialize + BorshSerialize>(
+    unset: &mut UnorderedSet<D>,
+    count: Option<i32>,
+) -> Vec<D> {
     let count: i32 = count.unwrap_or(PAGE_SIZE as i32);
     let mut result: Vec<D> = Vec::new();
 
     let mut start: i32 = unset.len() as i32 - count;
     let end: i32 = unset.len() as i32;
-    if start < 0{
+    if start < 0 {
         start = 0;
     }
 
@@ -246,13 +238,11 @@ pub fn get_last<D: BorshDeserialize + BorshSerialize>(unset: &mut UnorderedSet<D
     result
 }
 
-
-
 /// Custom type for storing "global" variables
 /// Rust doesn't allow creating global variables that aren't constants, even pointers are not allowed.
 /// So we're using references to this instead.
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct TrieState{
+pub struct Globals {
     // pub comments: Vector<Comment>,// Doesn't implement Serialize
     pub comments: UnorderedSet<Comment>,
     // pub votes: Vector<Vote>, // Doesn't Implement Serialize
@@ -262,17 +252,16 @@ pub struct TrieState{
     pub donations: UnorderedSet<Donation>,
 }
 
-
-/// Default trait is like new() constructor, but it has no args, and 
+/// Default trait is like new() constructor, but it has no args, and
 /// the vm calls it when creating the contract (If it's in the main contract struct).
-impl Default for TrieState{
+impl Default for Globals {
     fn default() -> Self {
         let comments: UnorderedSet<Comment> = UnorderedSet::new("c".as_bytes());
         let votes: UnorderedSet<Vote> = UnorderedSet::new("v".as_bytes());
         let voters: UnorderedSet<AccountId> = UnorderedSet::new("vs".as_bytes());
         let donations: UnorderedSet<Donation> = UnorderedSet::new("d".as_bytes());
 
-        TrieState{
+        Globals {
             comments,
             votes,
             voters,
@@ -280,5 +269,3 @@ impl Default for TrieState{
         }
     }
 }
-
-

@@ -1,9 +1,6 @@
 [workspace]
-members = [
-  "meme",
-  "museum",
-  "utils",
-]
+members = ["meme", "museum", "utils"]
+exclude = ["near-sdk-rs"]
 
 [profile.release]
 codegen-units = 1

@@ -1,35 +1,21 @@
 mod common;
 
 use near_sdk::{
-    testing_env,  
+    json_types::U128,
     MockedBlockchain,
     test_utils::VMContextBuilder,
-    json_types::{
-        U128,
-        // U64,
-        ValidAccountId,
-    },
+    testing_env,
 };
 
-
 use common::{
-    ATTACHED_DEPOSIT,
-    CATEGORY,
-    CONTRIBUTOR_ACCOUNT_ID,
-    CREATOR_ACCOUNT_ID,
-    DATA,
-    doInitialize,
+    doInitialize, ATTACHED_DEPOSIT, CATEGORY, CONTRIBUTOR_ACCOUNT_ID, CREATOR_ACCOUNT_ID, DATA,
     TITLE,
 };
 
-use meme::{
-    Contract,
-};
+use utils::validate;
 
+use meme::Contract;
 
-fn validate(id: &str) -> ValidAccountId {
-    ValidAccountId::try_from(id).unwrap()
-}
 
 fn contract() -> Contract {
     Contract::new(TITLE(), DATA(), CATEGORY())
@@ -46,11 +32,14 @@ fn captures_donations() {
     let mut contract = contract();
     contract.donate();
 
-    assert_eq!(U128::from(contract.get_meme().total_donations), ATTACHED_DEPOSIT());
+    assert_eq!(
+        U128::from(contract.get_meme().total_donations),
+        ATTACHED_DEPOSIT()
+    );
 }
 
 /// setup for the following tests
-fn setup(is_view: bool) -> Contract{
+fn setup(is_view: bool) -> Contract {
     let mut builder: VMContextBuilder = doInitialize(is_view);
     builder.attached_deposit(u128::from(ATTACHED_DEPOSIT()));
     builder.signer_account_id(validate(&CREATOR_ACCOUNT_ID()));
@@ -71,7 +60,7 @@ fn setup(is_view: bool) -> Contract{
 #[test]
 fn captures_all_donations() {
     let contract = setup(false);
-    assert_eq!(contract.trie_state.donations.len(), 2);
+    assert_eq!(contract.globals.donations.len(), 2);
 }
 
 #[test]
@@ -86,4 +75,3 @@ fn returns_a_list_of_recent_donations() {
     let mut contract = setup(false);
     assert!(contract.get_recent_donations().len() == 2);
 }
-

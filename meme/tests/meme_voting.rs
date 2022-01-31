@@ -1,47 +1,39 @@
-
 mod common;
 
-
 use near_sdk::{
-    testing_env,  
+    testing_env,
     MockedBlockchain,
-    // test_utils::VMContextBuilder,
-    json_types::ValidAccountId,
+    AccountId,
 };
 
+use utils::validate;
 
 use common::{
-    // doInitialize,
+    setup_meme_voting as setup,
     useContributorAsPredecessor,
-    TITLE,
-    DATA,
     CATEGORY,
     CREATOR_ACCOUNT_ID,
-    setup_meme_voting as setup,
+    DATA,
+    TITLE,
 };
-
 
 use near_sdk::collections::Vector;
 
 use meme::Contract;
-use utils::AccountId;
-
-
 
 #[test]
-fn allow_individuals_to_vote(){
+fn allow_individuals_to_vote() {
     let mut builder = setup(false);
     useContributorAsPredecessor(&mut builder);
     testing_env!(builder.build());
 
-
     let mut contract: Contract = Contract::new(TITLE(), DATA(), CATEGORY());
 
-    assert_eq!(contract.trie_state.votes.len(), 0);
+    assert_eq!(contract.globals.votes.len(), 0);
 
     contract.vote(1);
 
-    assert_eq!(contract.trie_state.votes.len(), 1);
+    assert_eq!(contract.globals.votes.len(), 1);
 }
 
 #[test]
@@ -72,10 +64,10 @@ fn prevents_any_user_from_voting_more_than_once() {
 }
 
 #[test]
-fn allows_groups_to_vote(){
+fn allows_groups_to_vote() {
     let mut builder = setup(false);
-    builder.signer_account_id(ValidAccountId::try_from(CREATOR_ACCOUNT_ID()).unwrap());
-    builder.predecessor_account_id(ValidAccountId::try_from(CREATOR_ACCOUNT_ID()).unwrap());
+    builder.signer_account_id(validate(&CREATOR_ACCOUNT_ID()));
+    builder.predecessor_account_id(validate(&CREATOR_ACCOUNT_ID()));
 
     testing_env!(builder.build());
 
@@ -84,10 +76,10 @@ fn allows_groups_to_vote(){
 
     contract.batch_vote(3, None);
 
-    assert_eq!(contract.trie_state.votes.len(), 1);
+    assert_eq!(contract.globals.votes.len(), 1);
 
     // Gets a reference (zero-copy) slice of the unorderedset as a Vector
-    let view: &Vector<AccountId> = contract.trie_state.voters.as_vector();
+    let view: &Vector<AccountId> = contract.globals.voters.as_vector();
 
-    assert!(view.get(0).unwrap().starts_with("batch-"));
+    assert!(String::from(view.get(0).unwrap()).starts_with("batch-"));
 }

@@ -1,26 +1,18 @@
 mod common;
 
 use near_sdk::{
-    testing_env,  
     MockedBlockchain,
     test_utils::VMContextBuilder,
-    json_types::ValidAccountId,
+    testing_env,
 };
 
+use utils::validate;
 
-use common::{
-    doInitialize,
-    TITLE,
-    DATA,
-    CATEGORY,
-    CONTRIBUTOR_ACCOUNT_ID,
-    CREATOR_ACCOUNT_ID,
-};
+use common::{doInitialize, CATEGORY, CONTRIBUTOR_ACCOUNT_ID, CREATOR_ACCOUNT_ID, DATA, TITLE};
 
 use meme::Contract;
 
-
-fn setup(is_view: bool) -> VMContextBuilder{
+fn setup(is_view: bool) -> VMContextBuilder {
     let mut builder: VMContextBuilder = doInitialize(is_view);
 
     builder.signer_account_id(validate(&CONTRIBUTOR_ACCOUNT_ID()));
@@ -29,28 +21,21 @@ fn setup(is_view: bool) -> VMContextBuilder{
     builder
 }
 
-
-fn validate(id: &str) -> ValidAccountId {
-    ValidAccountId::try_from(id).unwrap()
-}
-
-
 fn contract() -> Contract {
     Contract::new(TITLE(), DATA(), CATEGORY())
 }
 
 #[test]
 #[should_panic(expected = "Comment is too long, must be less than 500")]
-fn rejects_comments_that_are_too_long(){
+fn rejects_comments_that_are_too_long() {
     testing_env!(setup(false).build());
     #[allow(non_snake_case)]
     let TOO_LONG_TEXT: String = String::from("Lorem ipsum dolor sit amet, consectetur adipisicing elit. Tempore, doloremque. Quod maiores consectetur praesentium, aperiam repellendus facere velit dolorum vel corporis nisi pariatur asperiores animi quibusdam soluta deserunt nam? Repudiandae quidem quos expedita, vero, obcaecati ex, incidunt sequi porro corporis unde omnis ducimus tempora earum excepturi atque ea aliquid aliquam voluptates necessitatibus sit nostrum iure? Velit adipisci hic molestiae iure minima sint illum ex mollitia vitae consequuntur deserunt sit placeat, obcaecati quasi fugit odit aspernatur animi repellendus fugiat at dignissimos nihil!");
 
     let mut contract: Contract = contract();
-    
+
     contract.add_comment(TOO_LONG_TEXT);
 }
-
 
 #[test]
 fn captures_multiple_comments() {
@@ -71,5 +56,3 @@ fn captures_multiple_comments() {
 
     assert_eq!(contract.get_recent_comments().len(), 2);
 }
-
-

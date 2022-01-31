@@ -1,22 +1,20 @@
 mod models;
 
-
 // #[allow(unused_imports)]
 use near_sdk::{
-    env, 
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    // json_types::{U64}
+    env,
     near_bindgen,
+    AccountId,
+    Gas,
     Promise,
     PromiseIndex,
     PromiseResult,
-    borsh::{self, BorshDeserialize, BorshSerialize},
-    // json_types::{U64}
 };
-// use near_sdk::serde::{Deserialize, Serialize};
 
-
-use utils::{ MIN_ACCOUNT_BALANCE, AccountId, Category, MUSEUM_KEY, XCC_GAS };
-use models::{ Museum, MemeInitArgs, MemeNameAsArg, Globals };
-
+use models::{Globals, MemeInitArgs, MemeNameAsArg, Museum};
+use utils::{Category, MIN_ACCOUNT_BALANCE, MUSEUM_KEY, XCC_GAS};
 
 near_sdk::setup_alloc!();
 
@@ -26,22 +24,16 @@ fn CODE() -> Vec<u8> {
     include_bytes!("../../target/wasm32-unknown-unknown/release/meme.wasm").to_vec()
 }
 
-
 #[near_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    pub globals: Globals
+    pub globals: Globals,
 }
 
 #[near_bindgen]
-impl Contract{
-    // pub fn increment(&mut self) -> u32 {
-    //     self.id += 1;
-    //     self.id
-    // }
-
+impl Contract {
     #[init]
-    pub fn new(name: String, owners: Vec<AccountId>) -> Self{
+    pub fn new(name: String, owners: Vec<AccountId>) -> Self {
         // contract may only be initialized once
         assert!(!is_initialized(), "Contract is already initialized.");
 
@@ -60,12 +52,12 @@ impl Contract{
 
         env::log("museum was created".as_bytes());
 
-        Contract{ 
-            globals 
-        }
+        Contract { globals }
     }
 
-    pub fn get_museum(&mut self) -> Museum{
+    // We must set serializer here or the compiler will try using borsh
+    #[result_serializer(borsh)]
+    pub fn get_museum(&mut self) -> Museum {
         assert_contract_is_initialized();
         Museum::get()
     }
@@ -101,13 +93,7 @@ impl Contract{
 
     // Add your meme
 
-    pub fn add_meme(
-        &mut self,
-        meme: AccountId,
-        title: String,
-        data: String,
-        category: Category,
-    ) {
+    pub fn add_meme(&mut self, meme: AccountId, title: String, data: String, category: Category) {
         assert_contract_is_initialized();
         assert_signed_by_contributor_or_owner(&self.globals);
 
@@ -117,10 +103,16 @@ impl Contract{
             "Minimum account balance must be attached to initialize a meme (3 NEAR)",
         );
 
-        let account_id = full_account_for(meme.clone());
+        let account_id = full_account_for(meme.clone().to_string());
 
-        assert!(env::is_valid_account_id(account_id.as_bytes()), "Meme name must be valid NEAR account name");
-        assert!(!Museum::has_meme(&self.globals, &account_id), "Meme already exists");
+        assert!(
+            env::is_valid_account_id(account_id.as_bytes()),
+            "Meme name must be valid NEAR account name"
+        );
+        assert!(
+            !Museum::has_meme(&self.globals, &account_id),
+            "Meme already exists"
+        );
 
         env::log("Attempting to create meme".as_bytes());
 
@@ -128,53 +120,52 @@ impl Contract{
             .create_account()
             .deploy_contract(CODE())
             .add_full_access_key(env::signer_account_pk());
-        
-        promise.function_call(
-            Vec::from("init".as_bytes()), 
-            MemeInitArgs::new(title, data, category).bytefy(), 
-            env::attached_deposit(), 
-            XCC_GAS as u64,
-        ).then(
-            Promise::new(env::current_account_id())
+
+        promise
             .function_call(
-                Vec::from("on_meme_created".as_bytes()),        // method_name: Vec<u8>, 
-                MemeNameAsArg::new(meme).bytefy(),              // arguments: Vec<u8>, 
-                0,                                              // amount: Balance, 
-                XCC_GAS as u64,                                 //gas: Gas,
+                Vec::from("init".as_bytes()),
+                MemeInitArgs::new(title, data, category).bytefy(),
+                env::attached_deposit(),
+                Gas::from(XCC_GAS as u64),
             )
-        );
+            .then(Promise::new(env::current_account_id()).function_call(
+                Vec::from("on_meme_created".as_bytes()),        // method_name: Vec<u8>,
+                MemeNameAsArg::new(meme).bytefy(), // arguments: Vec<u8>,
+                0,                                 // amount: Balance,
+                Gas::from(XCC_GAS as u64),         //gas: Gas,
+            ));
     }
 
     pub fn on_meme_created(&mut self, meme: AccountId) {
-        assert_ne!(env::promise_results_count(), 0, );
+        assert_ne!(env::promise_results_count(), 0,);
         let results = env::promise_result(0);
 
-        let meme_name: String = full_account_for(meme);
+        let meme_name: AccountId = full_account_for(meme.to_string());
 
-        let data: Vec<u8> = match results{
+        let data: Vec<u8> = match results {
             PromiseResult::NotReady => {
                 // promise result is not complete
                 env::log(format!("Meme creation for [{}] is pending", meme_name).as_bytes());
-                return
-            },
+                return;
+            }
             PromiseResult::Successful(value) => {
                 // promise result is complete and successful
                 env::log(format!("Meme creation for [{}] succeeded", meme_name).as_bytes());
                 value
-            },
+            }
             PromiseResult::Failed => {
                 // promise result is complete and failed
                 env::log(format!("Meme creation for [{}] failed", meme_name).as_bytes());
-                return
+                return;
             }
         };
 
         let meme: AccountId = BorshDeserialize::deserialize(&mut &data[..]).unwrap();
-        self.globals.meme.insert(&meme);
+        self.globals.memes.insert(&meme);
     }
 
     // Governance methods reserved for 101Labs and NEAR admins
-    pub fn add_contributor(&mut self, account: AccountId){
+    pub fn add_contributor(&mut self, account: AccountId) {
         assert_contract_is_initialized();
         assert_signed_by_owner(&self.globals);
 
@@ -208,35 +199,30 @@ impl Contract{
         assert_contract_is_initialized();
         assert_signed_by_owner(&self.globals);
 
-        let promise_id: PromiseIndex = env::promise_batch_create(full_account_for(meme.clone()));
+        let promise_id: PromiseIndex =
+            env::promise_batch_create(&full_account_for(meme.to_string()));
 
-        env::promise_batch_action_delete_account(
-            promise_id, // promise_index: PromiseIndex, 
-            env::current_account_id(),// beneficiary_id: A,
-        );
+        env::promise_batch_action_delete_account(promise_id, &env::current_account_id());
 
-        let promise_id: PromiseIndex = env::promise_batch_then(
-            promise_id,// promise_index: PromiseIndex, 
-            env::current_account_id(),// account_id: A,
-        );
+        let promise_id: PromiseIndex =
+            env::promise_batch_then(promise_id, &env::current_account_id());
 
         env::promise_batch_action_function_call(
-            promise_id,// promise_index: PromiseIndex, 
-            "on_meme_removed".as_bytes(),// method_name: &[u8], 
-            &MemeNameAsArg::new(meme.clone()).bytefy(),// arguments: &[u8], 
-            0,// amount: Balance, 
-            XCC_GAS as u64,// gas: Gas,
+            promise_id,
+            "on_meme_removed".as_bytes(),
+            &MemeNameAsArg::new(meme.clone()).bytefy(),
+            0,
+            Gas::from(XCC_GAS as u64),
         );
     }
 
-    pub fn on_meme_removed(&mut self, meme: AccountId){
+    pub fn on_meme_removed(&mut self, meme: AccountId) {
         // TODO: confirm that promise was successful
-        env::log(format!("[{}] was removed", full_account_for(meme.clone())).as_bytes());
+        env::log(format!("[{}] was removed", full_account_for(meme.clone().into())).as_bytes());
 
         Museum::remove_meme(&mut self.globals, &meme);
     }
 }
-
 
 //
 // == PRIVATE FUNCTIONS ========================================================
@@ -266,17 +252,20 @@ fn is_contributor(globals: &Globals) -> bool {
 }
 
 fn assert_signed_by_owner(globals: &Globals) {
-    assert!(is_owner(globals), "This method can only be called by a museum owner");
+    assert!(
+        is_owner(globals),
+        "This method can only be called by a museum owner"
+    );
 }
 
 fn assert_signed_by_contributor_or_owner(globals: &Globals) {
-    assert!(is_contributor(globals) || is_owner(globals), "This method can only be called by a museum contributor or owner");
+    assert!(
+        is_contributor(globals) || is_owner(globals),
+        "This method can only be called by a museum contributor or owner"
+    );
 }
 
-fn full_account_for(meme: String) -> String {
-    format!("{}.{}", meme, env::current_account_id())
+fn full_account_for(meme: String) -> AccountId {
+    AccountId::try_from(format!("{}.{}", meme, env::current_account_id())).unwrap()
 }
-
-// Not used
-// fn remaining_gas() -> u64
 

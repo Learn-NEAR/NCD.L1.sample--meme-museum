@@ -1,20 +1,13 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 #[allow(unused_imports)]
 use near_sdk::{
-    env, 
-    near_bindgen,
-    json_types::{
-        U128,
-        U64,
-    }
+    env,
+    json_types::{U128, U64},
+    near_bindgen, AccountId, Gas,
 };
-// use near_sdk::collections::Vector;
-// use near_sdk::serde::{Deserialize, Serialize};
 
-
-use utils::{ MEME_KEY, XCC_GAS, MIN_ACCOUNT_BALANCE, MAX_COMMENT_LENGTH, AccountId, Category };
-use model::{ Comment, Vote, Meme, Donation, TrieState };
-
+use model::{Comment, Donation, Globals, Meme, Vote};
+use utils::{Category, MAX_COMMENT_LENGTH, MEME_KEY, MIN_ACCOUNT_BALANCE, XCC_GAS};
 
 near_sdk::setup_alloc!();
 
@@ -25,17 +18,13 @@ pub mod model;
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct Contract {
     /// Vectors and PersistentSets trie storage
-    pub trie_state: TrieState,
+    pub globals: Globals,
 }
 
 #[near_bindgen]
-impl Contract{
+impl Contract {
     #[init]
-    pub fn new(
-        title: String, 
-        data: String, 
-        category: Category,
-    ) -> Self {
+    pub fn new(title: String, data: String, category: Category) -> Self {
         // Contract may only be initialized once
         assert_contract_is_not_initialized();
 
@@ -72,7 +61,10 @@ impl Contract{
             env::predecessor_account_id(),
             "Users must vote directly",
         );
-        assert!((value == 1) || (value == -1), "Invalid vote, must be -1 or 1");
+        assert!(
+            (value == 1) || (value == -1),
+            "Invalid vote, must be -1 or 1"
+        );
 
         // register the vote.
         self.batch_vote(value, Some(false));
@@ -91,11 +83,15 @@ impl Contract{
         }
 
         let voter: String = match is_batch {
-            true => { format!("batch-{}", env::predecessor_account_id())},
-            false => { format!("{}", env::predecessor_account_id())},
+            true => {
+                format!("batch-{}", env::predecessor_account_id())
+            }
+            false => {
+                format!("{}", env::predecessor_account_id())
+            }
         };
 
-        let trie_state = &mut self.trie_state;
+        let trie_state = &mut self.globals;
 
         Meme::add_vote(trie_state, voter, value);
     }
@@ -103,13 +99,13 @@ impl Contract{
     /// Get a list of recent votes
     pub fn get_recent_votes(&mut self) -> Vec<Vote> {
         assert_contract_is_initialized();
-        Meme::recent_votes(&mut self.trie_state, None)
+        Meme::recent_votes(&mut self.globals, None)
     }
 
     /// Get the current vote score
     pub fn get_vote_score(&self) -> i32 {
         assert_contract_is_initialized();
-        return Meme::get().vote_score
+        return Meme::get().vote_score;
     }
 
     // ----------------------------------------------------------------------------
@@ -126,13 +122,13 @@ impl Contract{
         );
         assert_reasonable_comment_length(&text);
 
-        Meme::add_comment(&mut self.trie_state, text);
+        Meme::add_comment(&mut self.globals, text);
     }
 
     /// Get a list of recent comments
     pub fn get_recent_comments(&mut self) -> Vec<Comment> {
         assert_contract_is_initialized();
-        Meme::recent_comments(&mut self.trie_state, None)
+        Meme::recent_comments(&mut self.globals, None)
     }
 
     // ----------------------------------------------------------------------------
@@ -151,77 +147,77 @@ impl Contract{
 
         assert!(env::attached_deposit() > 0, "Donor must attach some money");
 
-        Meme::add_donation(&mut self.trie_state);
+        Meme::add_donation(&mut self.globals);
     }
 
     /// Get a list of donations.
     pub fn get_donations_total(&mut self) -> u128 {
         assert_contract_is_initialized();
 
-        return Meme::get().total_donations
+        return Meme::get().total_donations;
     }
 
     /// Get a list of recent comments
     pub fn get_recent_donations(&mut self) -> Vec<Donation> {
         assert_contract_is_initialized();
 
-        Meme::recent_donations(&mut self.trie_state, None)
+        Meme::recent_donations(&mut self.globals, None)
     }
 
     /// Transfer all donations to a specified account.
-    pub fn release_donations(&mut self, account: AccountId){
+    pub fn release_donations(&mut self, account: AccountId) {
         assert_contract_is_initialized();
         assert_signed_by_creator();
 
         // transfer funds to provided account and call ourselves back once transfer is complete
-        let promise_index: u64 = env::promise_batch_create(account);
+        let promise_index: u64 = env::promise_batch_create(&account);
 
-        env::promise_batch_action_transfer(
-            promise_index,
-            Meme::get().total_donations,
-        );
+        env::promise_batch_action_transfer(promise_index, Meme::get().total_donations);
 
         let promise_index = env::promise_batch_then(
-            promise_index,// promise_index: PromiseIndex, 
-            env::current_account_id(),// account_id: A,
+            promise_index,              // promise_index: PromiseIndex,
+            &env::current_account_id(), // account_id: A,
         );
 
         env::promise_batch_action_function_call(
-            promise_index,// promise_index: PromiseIndex, 
-            "on_donations_released".as_bytes(),// method_name: &[u8], 
-            "{}".as_bytes(),// arguments: &[u8], 
-            0,// amount: Balance, 
-            XCC_GAS as u64,// gas: Gas,
+            promise_index,             // promise_index: PromiseIndex,
+            "on_donations_released".as_bytes(),   // method_name: &str,
+            "{}".as_bytes(),           // arguments: &[u8],
+            0,                         // amount: Balance,
+            Gas::from(XCC_GAS as u64), // gas: Gas,
         );
     }
 
     /// Callback method invoked once donation release is complete
-    pub fn on_donations_released(&self){
+    pub fn on_donations_released(&self) {
         env::log("Donations were released".as_bytes());
     }
-
-}   
-
+}
 
 // == PRIVATE FUNCTIONS ========================================================
 //
 // Helper functions that are not part of the contract
 
 /// Manage comment properties.
-pub fn assert_reasonable_comment_length(text: &str){
+pub fn assert_reasonable_comment_length(text: &str) {
     assert!(
-        text.len() < MAX_COMMENT_LENGTH as usize, 
-        "Comment is too long, must be less than {}", MAX_COMMENT_LENGTH,
+        text.len() < MAX_COMMENT_LENGTH as usize,
+        "Comment is too long, must be less than {}",
+        MAX_COMMENT_LENGTH,
     );
 }
 
 /// Indicate whether contract caller is the creator.
 pub fn is_creator() -> bool {
-    env::predecessor_account_id().eq(&Meme::get().creator)
+    let predecessor_account_id: String = env::predecessor_account_id().into();
+    predecessor_account_id.eq(&Meme::get().creator)
 }
 
 pub fn assert_signed_by_creator() {
-    assert!(is_creator(), "This method can only be called by the meme creator");
+    assert!(
+        is_creator(),
+        "This method can only be called by the meme creator"
+    );
 }
 
 /// Track Whether or not the meme has been initialized

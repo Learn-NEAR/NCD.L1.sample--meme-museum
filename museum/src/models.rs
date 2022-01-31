@@ -1,12 +1,11 @@
 use near_sdk::{
-    env,
+    borsh::{self, BorshDeserialize, BorshSerialize},
     collections::UnorderedSet,
-    borsh::{ self, BorshDeserialize, BorshSerialize },
-    // json_types::{ ValidAccountId, },
+    env,
+    AccountId,
 };
 
-use utils::{ MUSEUM_KEY, AccountId, Timestamp, Category };
-
+use utils::{Category, Timestamp, MUSEUM_KEY};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Museum {
@@ -14,22 +13,18 @@ pub struct Museum {
     pub name: String,
 }
 
-
 impl Museum {
     pub fn new(name: String, created_at: Option<Timestamp>) -> Self {
         let created_at: Timestamp = created_at.unwrap_or(env::block_timestamp());
 
-        Museum{
-            created_at,
-            name,
-        }
+        Museum { created_at, name }
     }
 
     // ----------------------------------------------------------------------------
     // Basic functions
     // ----------------------------------------------------------------------------
 
-    pub fn create(globals: &mut Globals, name: String, new_owners: Vec<AccountId>){
+    pub fn create(globals: &mut Globals, name: String, new_owners: Vec<AccountId>) {
         assert!(name.len() > 0, "Museum name may not be blank");
 
         // save the museum to storage
@@ -47,37 +42,36 @@ impl Museum {
 
         let result: Museum = BorshDeserialize::deserialize(&mut (&stored[..])).unwrap();
         // We have to use borsh to serialize/deserialize this object to/from bytes
-        return result
+        return result;
     }
 
     pub fn set(&mut self) {
         let mut museum: Vec<u8> = Vec::new();
-        
-        
+
         borsh::ser::BorshSerialize::serialize(self, &mut museum).unwrap();
         env::storage_write(MUSEUM_KEY().as_bytes(), &museum[..]);
     }
-    
+
     // ----------------------------------------------------------------------------
     // Memes
     // ----------------------------------------------------------------------------
 
     pub fn add_meme(globals: &mut Globals, account_id: &AccountId) {
-        globals.meme.insert(account_id);
+        globals.memes.insert(account_id);
     }
 
     pub fn remove_meme(globals: &mut Globals, account_id: &AccountId) {
-        globals.meme.remove(account_id);
+        globals.memes.remove(account_id);
     }
 
     pub fn has_meme(globals: &Globals, account_id: &AccountId) -> bool {
-        globals.meme.contains(account_id)
+        globals.memes.contains(account_id)
     }
 
-    pub fn get_meme_list(globals: &Globals) -> Vec<String> { 
-        let mut result: Vec<String> = Vec::new();
+    pub fn get_meme_list(globals: &Globals) -> Vec<AccountId> {
+        let mut result: Vec<AccountId> = Vec::new();
 
-        for meme in globals.meme.as_vector().iter(){
+        for meme in globals.memes.as_vector().iter() {
             result.push(meme);
         }
 
@@ -85,7 +79,7 @@ impl Museum {
     }
 
     pub fn get_meme_count(globals: &Globals) -> u32 {
-        globals.meme.len() as u32
+        globals.memes.len() as u32
     }
 
     // ----------------------------------------------------------------------------
@@ -123,26 +117,13 @@ impl Museum {
     pub fn get_owner_list(globals: &Globals) -> Vec<AccountId> {
         let mut result: Vec<AccountId> = Vec::new();
 
-        for owner in globals.owners.as_vector().iter(){
+        for owner in globals.owners.as_vector().iter() {
             result.push(owner);
         }
 
         result
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[derive(BorshSerialize)]
 pub struct MemeInitArgs {
@@ -151,9 +132,13 @@ pub struct MemeInitArgs {
     pub category: Category,
 }
 
-impl MemeInitArgs{
-    pub fn new(title: String, data: String, category: Category) -> Self{
-        MemeInitArgs{title,data, category}
+impl MemeInitArgs {
+    pub fn new(title: String, data: String, category: Category) -> Self {
+        MemeInitArgs {
+            title,
+            data,
+            category,
+        }
     }
 
     pub fn bytefy(&self) -> Vec<u8> {
@@ -162,17 +147,15 @@ impl MemeInitArgs{
         result
     }
 }
-
 
 #[derive(BorshSerialize)]
-pub struct MemeNameAsArg{
-    meme: String,
+pub struct MemeNameAsArg {
+    meme: AccountId,
 }
 
-
-impl MemeNameAsArg{
-    pub fn new(meme: String) -> Self{
-        MemeNameAsArg{meme}
+impl MemeNameAsArg {
+    pub fn new(meme: AccountId) -> Self {
+        MemeNameAsArg { meme }
     }
 
     pub fn bytefy(&self) -> Vec<u8> {
@@ -182,23 +165,21 @@ impl MemeNameAsArg{
     }
 }
 
-
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct Globals{
-    pub meme: UnorderedSet<AccountId>,
+pub struct Globals {
+    pub memes: UnorderedSet<AccountId>,
     pub contributors: UnorderedSet<AccountId>,
     pub owners: UnorderedSet<AccountId>,
 }
 
-
-impl Default for Globals{
-    fn default() -> Self{
-        let meme: UnorderedSet<AccountId> = UnorderedSet::new("m".as_bytes());
+impl Default for Globals {
+    fn default() -> Self {
+        let memes: UnorderedSet<AccountId> = UnorderedSet::new("m".as_bytes());
         let contributors: UnorderedSet<AccountId> = UnorderedSet::new("c".as_bytes());
         let owners: UnorderedSet<AccountId> = UnorderedSet::new("o".as_bytes());
 
-        Globals{
-            meme,
+        Globals {
+            memes,
             contributors,
             owners,
         }
