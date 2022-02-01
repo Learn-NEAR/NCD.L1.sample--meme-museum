@@ -67,7 +67,7 @@ fn captures_all_donations() {
 fn calculates_a_running_donations_total() {
     let twice_attached_deposit = U128::from(2 as u128 * u128::from(ATTACHED_DEPOSIT()));
     let mut contract = setup(false);
-    assert!(U128(contract.get_donations_total()) == twice_attached_deposit);
+    assert!(contract.get_donations_total() == twice_attached_deposit);
 }
 
 #[test]

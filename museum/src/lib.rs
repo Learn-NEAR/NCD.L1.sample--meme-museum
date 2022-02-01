@@ -13,7 +13,8 @@ use near_sdk::{
     PromiseResult,
 };
 
-use models::{Globals, MemeInitArgs, MemeNameAsArg, Museum};
+
+pub use models::{Globals, MemeInitArgs, MemeNameAsArg, Museum};
 use utils::{Category, MIN_ACCOUNT_BALANCE, MUSEUM_KEY, XCC_GAS};
 
 near_sdk::setup_alloc!();
@@ -21,6 +22,7 @@ near_sdk::setup_alloc!();
 // import meme contract bytecode as a Byte Vec
 #[allow(non_snake_case)]
 fn CODE() -> Vec<u8> {
+    // unimplemented!()
     include_bytes!("../../target/wasm32-unknown-unknown/release/meme.wasm").to_vec()
 }
 

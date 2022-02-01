@@ -6,7 +6,7 @@ use near_sdk::{
     near_bindgen, AccountId, Gas,
 };
 
-use model::{Comment, Donation, Globals, Meme, Vote};
+pub use model::{Comment, Donation, Globals, Meme, Vote};
 use utils::{Category, MAX_COMMENT_LENGTH, MEME_KEY, MIN_ACCOUNT_BALANCE, XCC_GAS};
 
 near_sdk::setup_alloc!();
@@ -151,10 +151,10 @@ impl Contract {
     }
 
     /// Get a list of donations.
-    pub fn get_donations_total(&mut self) -> u128 {
+    pub fn get_donations_total(&mut self) -> U128 {
         assert_contract_is_initialized();
 
-        return Meme::get().total_donations;
+        return U128::from(Meme::get().total_donations);
     }
 
     /// Get a list of recent comments

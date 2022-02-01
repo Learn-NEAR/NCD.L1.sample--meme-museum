@@ -18,7 +18,7 @@ mod test {
 
     // Load in contract bytes
     near_sdk_sim::lazy_static! {
-      static ref MUSEUM_WASM_BYTES: &'static [u8] = include_bytes!("../../build/release/museum.wasm").as_ref();
+      static ref MUSEUM_WASM_BYTES: &'static [u8] = include_bytes!("../../target/wasm32-unknown-unknown/release/museum.wasm").as_ref();
     }
 
     // ------------------------------------------------------------------------

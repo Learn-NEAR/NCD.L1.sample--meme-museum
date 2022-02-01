@@ -11,13 +11,13 @@ Any content produced by NEAR, or developer resources that NEAR provides, are for
 ### Getting started
 
 1. clone this repo to a local folder
-2. run `yarn`
-3. run `yarn test`
+2. run `cargo build --target wasm32-unknown-unknown --release`
+3. run `cargo test`
 
-### Top-level `yarn` commands
+### Top-level `cargo` commands
 
-- run `yarn test` to run all tests
-  - (!) be sure to run `yarn build:release` at least once before:
+- run `cargo test` to run all tests
+  - (!) be sure to run `cargo build --target wasm32-unknown-unknown` at least once before:
     - run `yarn test:unit` to run only unit tests
     - run `yarn test:simulate` to run only simulation tests
 - run `yarn build` to quickly verify build status
