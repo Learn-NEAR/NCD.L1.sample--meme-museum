@@ -24,7 +24,7 @@ impl Museum {
     // Basic functions
     // ----------------------------------------------------------------------------
 
-    pub fn create(globals: &mut Globals, name: String, new_owners: Vec<AccountId>) {
+    pub fn create(globals: &mut Globals, name: String, new_owners: Vec<AccountId>) -> Self{
         assert!(name.len() > 0, "Museum name may not be blank");
 
         // save the museum to storage
@@ -35,6 +35,7 @@ impl Museum {
         for index in 0..new_owners.len() {
             globals.owners.insert(new_owners.get(index).unwrap());
         }
+        itself
     }
 
     pub fn get() -> Museum {
@@ -111,7 +112,17 @@ impl Museum {
     }
 
     pub fn has_owner(globals: &Globals, account: &AccountId) -> bool {
-        globals.owners.contains(account)
+        let result = globals.owners.contains(account);
+
+
+        if !result {
+            for i in globals.owners.iter(){
+                env::log(format!("Found: {}", i).as_bytes());
+            };
+
+            env::log(format!("\n\nTried: {}\n\n", env::predecessor_account_id()).as_bytes());
+        }
+        result
     }
 
     pub fn get_owner_list(globals: &Globals) -> Vec<AccountId> {

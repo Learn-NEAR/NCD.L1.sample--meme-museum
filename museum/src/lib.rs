@@ -11,6 +11,7 @@ use near_sdk::{
     Promise,
     PromiseIndex,
     PromiseResult,
+    serializer, PanicOnDefault,
 };
 
 
@@ -22,19 +23,21 @@ near_sdk::setup_alloc!();
 // import meme contract bytecode as a Byte Vec
 #[allow(non_snake_case)]
 fn CODE() -> Vec<u8> {
-    // unimplemented!()
     include_bytes!("../../target/wasm32-unknown-unknown/release/meme.wasm").to_vec()
 }
 
 #[near_bindgen]
-#[derive(Default, BorshDeserialize, BorshSerialize)]
+#[derive(PanicOnDefault, BorshDeserialize, BorshSerialize)]
 pub struct Contract {
+    museum: Museum,
     pub globals: Globals,
 }
 
 #[near_bindgen]
 impl Contract {
+    #[payable]
     #[init]
+    #[serializer(borsh)]
     pub fn new(name: String, owners: Vec<AccountId>) -> Self {
         // contract may only be initialized once
         assert!(!is_initialized(), "Contract is already initialized.");
@@ -50,11 +53,14 @@ impl Contract {
 
         let mut globals: Globals = Globals::default();
         // create the museum using incoming metadata
-        Museum::create(&mut globals, name, owners);
+        let museum = Museum::create(&mut globals, name, owners);
 
         env::log("museum was created".as_bytes());
 
-        Contract { globals }
+        Contract { 
+            museum,
+            globals, 
+        }
     }
 
     // We must set serializer here or the compiler will try using borsh
@@ -246,7 +252,7 @@ fn assert_contract_is_initialized() {
 // Indicate whether contract caller is the creator
 
 fn is_owner(globals: &Globals) -> bool {
-    Museum::has_owner(globals, &env::predecessor_account_id())
+    Museum::has_owner(globals, &env::predecessor_account_id())  
 }
 
 fn is_contributor(globals: &Globals) -> bool {
@@ -256,7 +262,7 @@ fn is_contributor(globals: &Globals) -> bool {
 fn assert_signed_by_owner(globals: &Globals) {
     assert!(
         is_owner(globals),
-        "This method can only be called by a museum owner"
+        "This method can only be called by a museum owner",
     );
 }
 
